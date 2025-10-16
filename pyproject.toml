@@ -3,6 +3,10 @@ name = "chat-py-sockets"
 version = "0.1.0"
 
 [tool.pytest.ini_options]
+markers = [
+  "slow: pruebas lentas o de stress (se pueden saltar en CI)"
+]
+
 addopts = "-q"
 testpaths = ["tests"]
 pythonpath = ["src"]
