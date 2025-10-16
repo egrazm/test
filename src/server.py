@@ -8,6 +8,8 @@ Servidor de chat con sockets TCP (line-based).
 
 import socket
 import threading
+import time
+import queue
 from typing import List, Tuple
 
 from src.validation import is_valid_message
@@ -26,6 +28,10 @@ class ChatServer:
         self._running = threading.Event()
         self._accept_thread: threading.Thread | None = None
 
+        # Cola de mensajes y thread broadcaster (orden global)
+        self._msg_q: "queue.Queue[str | None]" = queue.Queue()
+        self._bcast_thread: threading.Thread | None = None
+
     @property
     def address(self) -> tuple[str, int]:
         """Devuelve (host, port) real (útil para pruebas)."""
@@ -36,16 +42,23 @@ class ChatServer:
     # -------- ciclo de vida --------
 
     def start(self):
-        """Inicializa el socket y arranca el hilo de aceptación."""
+        """Inicializa el socket y arranca los hilos de aceptación y broadcast."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.bind((self.host, self.port))
         self._sock.listen(100)
         self._running.set()
+
         self._accept_thread = threading.Thread(
             target=self._accept_loop, name="accept-loop", daemon=True
         )
         self._accept_thread.start()
+
+        # Hilo para difundir mensajes en orden global
+        self._bcast_thread = threading.Thread(
+            target=self._broadcast_loop, name="broadcast-loop", daemon=True
+        )
+        self._bcast_thread.start()
 
     def stop(self):
         """Detiene el servidor y cierra todos los clientes."""
@@ -57,27 +70,30 @@ class ChatServer:
         except Exception:
             pass
 
-        # cerrar clientes
+        # Avisar al broadcaster que debe terminar (centinela)
+        try:
+            self._msg_q.put(None)
+        except Exception:
+            pass
+
+        # Cerrar clientes
         with self._lock:
             for sock, rf, wf in list(self._clients):
-                try:
-                    rf.close()
-                except Exception:
-                    pass
-                try:
-                    wf.close()
-                except Exception:
-                    pass
-                try:
-                    sock.close()
-                except Exception:
-                    pass
+                for closee in (rf, wf, sock):
+                    try:
+                        closee.close()
+                    except Exception:
+                        pass
             self._clients.clear()
 
-        # esperar fin del hilo de aceptación
+        # Esperar fin de hilos
         if self._accept_thread:
             self._accept_thread.join(timeout=1.0)
             self._accept_thread = None
+
+        if self._bcast_thread:
+            self._bcast_thread.join(timeout=1.0)
+            self._bcast_thread = None
 
     # -------- bucles internos --------
 
@@ -98,6 +114,8 @@ class ChatServer:
         rf, wf = wrap(client_sock)
         with self._lock:
             self._clients.append((client_sock, rf, wf))
+        # estabiliza conexiones simultáneas antes del primer recv/broadcast
+        time.sleep(0.05)
 
         try:
             while self._running.is_set():
@@ -113,8 +131,8 @@ class ChatServer:
                         pass
                     continue
 
-                # retransmitir a todos (incluye emisor)
-                self.broadcast(msg)
+                # Encolar para garantizar orden global de difusión
+                self._msg_q.put(msg)
 
         except Exception:
             # errores por desconexión o EPIPE: ignoramos y limpiamos
@@ -126,18 +144,24 @@ class ChatServer:
                     self._clients.remove((client_sock, rf, wf))
                 except ValueError:
                     pass
+            for closee in (rf, wf, client_sock):
+                try:
+                    closee.close()
+                except Exception:
+                    pass
+
+    def _broadcast_loop(self):
+        """Toma mensajes de la cola y los difunde en un único hilo para preservar orden global."""
+        while True:
             try:
-                rf.close()
-            except Exception:
-                pass
-            try:
-                wf.close()
-            except Exception:
-                pass
-            try:
-                client_sock.close()
-            except Exception:
-                pass
+                item = self._msg_q.get(timeout=0.1)
+            except queue.Empty:
+                if not self._running.is_set():
+                    break
+                continue
+            if item is None:  # centinela de stop()
+                break
+            self.broadcast(item)
 
     # -------- API --------
 
@@ -145,12 +169,13 @@ class ChatServer:
         """Envía `text` a todos los clientes conectados."""
         muertos: List[Client] = []
         with self._lock:
-            for sock, rf, wf in list(self._clients):  # <- iterar sobre copia
+            for sock, rf, wf in list(self._clients):  # iterar sobre copia
                 try:
                     send_line(wf, text)
                 except Exception:
                     muertos.append((sock, rf, wf))
 
+            # limpiar clientes muertos
             for sock, rf, wf in muertos:
                 try:
                     self._clients.remove((sock, rf, wf))
