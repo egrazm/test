@@ -1,21 +1,22 @@
-"""
-Validación de mensajes del chat.
-Reglas:
-- No nulos.
-- No vacíos (ni solo espacios) tras quitar \r\n y espacios extremos.
-- Máximo 256 chars.
-"""
+# Soporta ambos layouts, por si tu pythonpath apunta a 'src' o a la raíz
+try:
+    from validation import is_valid_message
+except ImportError:
+    from src.validation import is_valid_message
 
-MAX_LEN = 256
+def test_rejects_none_empty_and_spaces():
+    assert is_valid_message(None) is False
+    assert is_valid_message("") is False
+    assert is_valid_message("   ") is False
+    assert is_valid_message("\n") is False
+    assert is_valid_message(" \r\n ") is False
 
-def is_valid_message(text: str) -> bool:
-    if text is None:
-        return False
-    # Primero quitamos solo saltos de línea finales para no “matar” espacios internos
-    trimmed_newlines = text.strip("\r\n")
-    # Luego validamos contenido no vacío al remover espacios a los costados
-    if trimmed_newlines.strip() == "":
-        return False
-    if len(trimmed_newlines) > MAX_LEN:
-        return False
-    return True
+def test_accepts_normal_message():
+    assert is_valid_message("hola mundo") is True
+    assert is_valid_message("  hola   ") is True  # espacios alrededor ok
+
+def test_rejects_too_long():
+    assert is_valid_message("a" * 257) is False
+
+def test_accepts_exact_limit():
+    assert is_valid_message("a" * 256) is True

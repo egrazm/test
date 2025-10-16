@@ -26,7 +26,6 @@ def recv_line(rf, timeout=None) -> str | None:
     """
     if timeout is not None:
         try:
-            # No siempre está disponible, pero cuando lo está ayuda.
             rf.buffer.raw._sock.settimeout(timeout)
         except Exception:
             pass

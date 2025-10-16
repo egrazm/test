@@ -9,6 +9,14 @@ Reglas:
 MAX_LEN = 256
 
 def is_valid_message(text: str) -> bool:
-    """Devuelve True si `text` cumple las reglas del protocolo."""
-    # Día 2 (TDD) implementará esta función.
-    return False  # placeholder para que las primeras pruebas fallen (RED)
+    if text is None:
+        return False
+    # Quitamos solo saltos de línea de los extremos
+    trimmed_newlines = text.strip("\r\n")
+    # Debe quedar algo de contenido (que no sea solo espacios)
+    if trimmed_newlines.strip() == "":
+        return False
+    # Longitud máxima
+    if len(trimmed_newlines) > MAX_LEN:
+        return False
+    return True
