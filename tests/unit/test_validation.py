@@ -1,6 +1,6 @@
 # Soporta ambos layouts, por si tu pythonpath apunta a 'src' o a la raíz
 try:
-    from validation import is_valid_message
+    from src.validation import is_valid_message
 except ImportError:
     from src.validation import is_valid_message
 

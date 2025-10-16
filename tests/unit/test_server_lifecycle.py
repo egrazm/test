@@ -1,4 +1,4 @@
-from server import ChatServer
+from src.server import ChatServer
 
 def test_server_start_stop_no_clients_and_broadcast_noop():
     srv = ChatServer(host="127.0.0.1", port=0)
