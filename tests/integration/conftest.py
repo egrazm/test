@@ -2,7 +2,7 @@ import pytest
 import socket
 import time
 
-from server import ChatServer
+from src.server import ChatServer
 
 @pytest.fixture(scope="function")
 def server():
