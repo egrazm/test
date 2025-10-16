@@ -1,5 +1,5 @@
 import socket
-from protocol import wrap, recv_line
+from src.protocol import wrap, recv_line
 
 def test_recv_line_respects_timeout_and_returns_none_on_eof():
     # socketpair existe en Windows desde Py3.8; en 3.13 OK

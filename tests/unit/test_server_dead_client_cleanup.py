@@ -1,6 +1,6 @@
 import socket
 import time
-from server import ChatServer
+from src.server import ChatServer
 
 def test_broadcast_removes_dead_clients_gracefully():
     srv = ChatServer(host="127.0.0.1", port=0)
