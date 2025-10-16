@@ -111,19 +111,3 @@ pytest --timeout=5
 
 ---
 
-### 🧑‍💻 Autor
-
-**Elias Gonzalez (@egrazm)**  
-Desarrollador Full Stack & entusiasta del aprendizaje basado en proyectos.  
-Parte del ecosistema **Penguin Academy** 🐧
-
----
-
-### 📜 Licencia
-
-Este proyecto está bajo la licencia **MIT**.  
-Puedes usarlo, modificarlo y compartirlo libremente dando el crédito correspondiente.
-
----
-
-💬 *“El código bien probado no solo funciona, también enseña.”*  
