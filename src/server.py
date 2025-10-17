@@ -8,8 +8,8 @@ Servidor de chat con sockets TCP (line-based).
 
 import socket
 import threading
-import time
 import queue
+import time
 from typing import List, Tuple
 
 from src.validation import is_valid_message
@@ -105,22 +105,31 @@ class ChatServer:
             except OSError:
                 # socket cerrado al hacer stop()
                 break
+
+            # Optimización de latencia
+            try:
+                client_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except Exception:
+                pass
+
+            # *** REGISTRO INMEDIATO DEL CLIENTE ***
+            rf, wf = wrap(client_sock)
+            with self._lock:
+                self._clients.append((client_sock, rf, wf))
+
+            # Ahora sí, arrancamos el lector
             thread = threading.Thread(
-                target=self._client_loop, args=(client_sock,), daemon=True
+                target=self._client_loop,
+                args=(client_sock, rf, wf),
+                daemon=True,
             )
             thread.start()
 
-    def _client_loop(self, client_sock: socket.socket):
-        rf, wf = wrap(client_sock)
-        with self._lock:
-            self._clients.append((client_sock, rf, wf))
-        # estabiliza conexiones simultáneas antes del primer recv/broadcast
-        time.sleep(0.05)
-
+    def _client_loop(self, client_sock: socket.socket, rf, wf):
         try:
             while self._running.is_set():
                 msg = recv_line(rf)
-                if msg is None:  # EOF -> cliente se fue
+                if msg is None:  # EOF o timeout -> cliente se fue
                     break
 
                 if not is_valid_message(msg):
@@ -161,28 +170,31 @@ class ChatServer:
                 continue
             if item is None:  # centinela de stop()
                 break
+
+            # --- micro-batching para capturar clientes recién aceptados ---
+            # Pequeña pausa para que el hilo de accept termine de registrar conexiones
+            # concurrentes antes de este broadcast.
+            time.sleep(0.005)
+
             self.broadcast(item)
+
 
     # -------- API --------
 
     def broadcast(self, text: str):
-        """Envía `text` a todos los clientes conectados."""
-        muertos: List[Client] = []
         with self._lock:
-            for sock, rf, wf in list(self._clients):  # iterar sobre copia
-                try:
-                    send_line(wf, text)
-                except Exception:
-                    muertos.append((sock, rf, wf))
-
-            # limpiar clientes muertos
-            for sock, rf, wf in muertos:
-                try:
-                    self._clients.remove((sock, rf, wf))
-                except ValueError:
-                    pass
-                for closee in (rf, wf, sock):
-                    try:
-                        closee.close()
-                    except Exception:
-                        pass
+            clients_snapshot = list(self._clients)
+        muertos: List[Client] = []
+        for sock, rf, wf in clients_snapshot:
+            try:
+                send_line(wf, text)   # <- debe hacer flush por dentro
+            except Exception:
+                muertos.append((sock, rf, wf))
+        if muertos:
+            with self._lock:
+                for sock, rf, wf in muertos:
+                    if (sock, rf, wf) in self._clients:
+                        self._clients.remove((sock, rf, wf))
+                    for c in (rf, wf, sock):
+                        try: c.close()
+                        except: pass
