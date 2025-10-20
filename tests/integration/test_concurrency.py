@@ -52,7 +52,12 @@ def test_many_clients_send_concurrently(server, connect_fn, recv_line_fn):
         for s, r, w in conns:
             got = _recv_many(r, recv_line_fn, expected_count=N, total_timeout=3.0)
             # Aceptamos que el orden puede variar por carrera, pero el conjunto debe coincidir
+            # 🔴 Descomenta la siguiente línea para forzar un fallo (TDD modo "RED")
+            #assert got == msgs, f"orden esperado {msgs} pero recibí {got}"
+
+            # 🟢 Línea original (modo "GREEN", test debería pasar)
             assert set(got) == set(msgs), f"esperaba {set(msgs)} pero recibí {got}"
+
 
     finally:
         for s, r, w in conns:
