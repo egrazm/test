@@ -32,7 +32,12 @@ def test_clients_bursts(server, connect_fn, recv_line_fn):
                 line = recv_line_fn(r, total_timeout=0.2)
                 if line is not None:
                     got.append(line)
-            assert set(got) == expected_set, f"faltan: {expected_set - set(got)}"
+                # 🔴 Descomenta la siguiente línea para forzar un fallo (modo RED - exige orden exacto)
+                #assert got == sorted(expected_set), f"orden esperado distinto, recibí: {got}"
+
+                # 🟢 Línea original (modo GREEN - solo verifica contenido sin importar el orden)
+                assert set(got) == expected_set, f"faltan: {expected_set - set(got)}"
+
     finally:
         for s, r, w in conns:
             try: r.close(); w.close(); s.close()
