@@ -37,7 +37,7 @@ def recv_line_fn():
     Lee una línea con reintentos cortos hasta total_timeout.
     Devuelve str o None si no llega nada.
     """
-    def _recv(rf, total_timeout: float = 2.0, step: float = 0.02):
+    def recv(rf, total_timeout: float = 2.0, step: float = 0.02):
         deadline = time.time() + total_timeout
         while time.time() < deadline:
             try:
@@ -52,5 +52,5 @@ def recv_line_fn():
             except Exception:
                 time.sleep(step)
         return None
-    return _recv
+    return recv
 
