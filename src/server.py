@@ -187,7 +187,7 @@ class ChatServer:
         muertos: List[Client] = []
         for sock, rf, wf in clients_snapshot:
             try:
-                send_line(wf, text)   # <- debe hacer flush por dentro
+                send_line(wf, text) 
             except Exception:
                 muertos.append((sock, rf, wf))
         if muertos:
