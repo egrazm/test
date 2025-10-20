@@ -1,8 +1,8 @@
 import pytest
 import socket
 import time
-
 from src.server import ChatServer
+
 
 @pytest.fixture(scope="function")
 def server():
@@ -13,23 +13,24 @@ def server():
     finally:
         srv.stop()
 
+
 @pytest.fixture
 def connect_fn():
-    def _connect(addr: tuple[str, int], timeout: float = 1.0):
+    def connect(addr: tuple[str, int], timeout: float = 1.0):
         s = socket.create_connection(addr, timeout=timeout)
         rf = s.makefile("r", encoding="utf-8", newline="\n")
         wf = s.makefile("w", encoding="utf-8", newline="\n")
         return s, rf, wf
-    return _connect
+    return connect
+
 
 @pytest.fixture
 def send_line_fn():
-    def _send(wf, text: str):
+    def send(wf, text: str):
         wf.write(text.rstrip("\r\n") + "\n")
         wf.flush()
-    return _send
+    return send
 
-import time
 
 @pytest.fixture
 def recv_line_fn():
@@ -53,4 +54,3 @@ def recv_line_fn():
                 time.sleep(step)
         return None
     return recv
-
