@@ -28,7 +28,7 @@ def test_many_clients_send_concurrently(server, connect_fn, recv_line_fn):
     Verifica que cada cliente recibe N mensajes (incluye el suyo).
     """
     addr = server.address
-    N = 6  # podés subir a 10 si te va bien
+    N = 6
 
     conns = [connect_fn(addr) for _ in range(N)]
     try:
