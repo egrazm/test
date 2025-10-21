@@ -14,7 +14,6 @@ def test_clients_bursts(server, connect_fn, recv_line_fn):
             s, r, w = conns[i]
             for j in range(bursts_per_client):
                 w.write(f"c{i}-b{j}\n"); w.flush()
-                # un mini delay reduce colisiones extremas
                 time.sleep(0.01)
 
         threads = [threading.Thread(target=worker, args=(i,), daemon=True) for i in range(n_clients)]
@@ -24,7 +23,6 @@ def test_clients_bursts(server, connect_fn, recv_line_fn):
         expected_total = n_clients * bursts_per_client
         expected_set = {f"c{i}-b{j}" for i in range(n_clients) for j in range(bursts_per_client)}
 
-        # cada cliente debe recibir todos los mensajes
         for s, r, w in conns:
             got = []
             deadline = time.time() + 4.0
@@ -32,13 +30,18 @@ def test_clients_bursts(server, connect_fn, recv_line_fn):
                 line = recv_line_fn(r, total_timeout=0.2)
                 if line is not None:
                     got.append(line)
-                # 🔴 Descomenta la siguiente línea para forzar un fallo (modo RED - exige orden exacto)
-                #assert got == sorted(expected_set), f"orden esperado distinto, recibí: {got}"
 
-                # 🟢 Línea original (modo GREEN - solo verifica contenido sin importar el orden)
-                assert set(got) == expected_set, f"faltan: {expected_set - set(got)}"
+      
+            # 🔴 Descomenta la siguiente línea para forzar un fallo (modo RED - exige orden exacto)
+            #assert got == sorted(expected_set), f"orden esperado distinto, recibí: {got}"
+
+             # 🟢 Línea original (modo GREEN - solo verifica contenido sin importar el orden)
+            assert set(got) == expected_set, f"faltan: {expected_set - set(got)}"
 
     finally:
         for s, r, w in conns:
-            try: r.close(); w.close(); s.close()
-            except: pass
+            try:
+                r.close(); w.close(); s.close()
+            except:
+                pass
+
